@@ -1,25 +1,8 @@
 from typing import Dict
 from yfpy.query import YahooFantasySportsQuery
 from .models import TeamStats, Matchup, SeasonData
+from .constants import ID_TO_FIELD, LOWER_IS_BETTER
 import logging
-
-# Map Yahoo Stat ID to our internal field names
-ID_TO_FIELD = {
-    1: 'goals',
-    2: 'assists',
-    3: 'points',
-    4: 'plus_minus',
-    5: 'pim',
-    8: 'ppp',
-    31: 'hits',
-    14: 'shots',
-    19: 'goalie_wins',
-    26: 'save_pct',
-    23: 'gaa'
-}
-
-# Categories where lower is better (use internal field names)
-LOWER_IS_BETTER = {'gaa'}
 
 logger = logging.getLogger(__name__)
 

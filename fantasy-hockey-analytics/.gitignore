@@ -31,6 +31,9 @@ wheels/
 token.json
 yhandler_token.json
 
+# Database
+fantasy_hockey.db
+
 # IDE
 .idea/
 .vscode/
