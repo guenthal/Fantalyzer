@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 @dataclass
 class TeamStats:
+    team_id: int  # Yahoo's persistent team ID
     team_name: str
     manager_name: str
     goals: int = 0

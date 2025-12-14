@@ -67,7 +67,28 @@ class DataFetcher:
         if hasattr(team_obj, 'managers') and team_obj.managers:
              manager = _decode(team_obj.managers[0].nickname)
 
+        # Extract team_id (Yahoo's persistent identifier)
+        team_id = getattr(team_obj, 'team_id', None)
+        if team_id is None:
+            # Fallback: try to extract from team_key if needed
+            team_key = getattr(team_obj, 'team_key', None)
+            if team_key:
+                # team_key is like "nhl.l.16597.t.3" - extract the last number
+                try:
+                    team_id = int(str(team_key).split('.')[-1])
+                except:
+                    team_id = 0
+            else:
+                team_id = 0
+        
+        # Ensure team_id is an integer
+        try:
+            team_id = int(team_id)
+        except:
+            team_id = 0
+
         ts = TeamStats(
+            team_id=team_id,
             team_name=_decode(team_obj.name),
             manager_name=manager
         )

@@ -3,9 +3,25 @@ import sys
 import argparse
 from src.auth import get_yahoo_query
 from src.data_fetcher import DataFetcher
-from src.display import print_season_summary, print_threshold_report, print_data_status, print_fetch_summary
-from src.database import init_db, save_season_data, get_weeks_stored
+from src.display import (
+    print_season_summary, 
+    print_threshold_report, 
+    print_data_status, 
+    print_fetch_summary,
+    print_team_list,
+    print_team_analysis
+)
+from src.database import (
+    init_db, 
+    save_season_data, 
+    get_weeks_stored,
+    get_all_teams,
+    team_exists,
+    drop_all_tables
+)
 from src.analytics import calculate_all_thresholds, get_analysis_summary
+from src.team_analysis import analyze_team
+from src.config import get_my_team_id, is_my_team_configured
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -102,32 +118,145 @@ def analyze_data():
         return False
 
 
+def team_command(args):
+    """Handle team analysis commands."""
+    try:
+        init_db()
+        
+        # Handle --list flag
+        if args.list:
+            teams = get_all_teams()
+            if not teams:
+                print("\nNo teams in database. Run 'python main.py fetch' first.")
+                return False
+            print_team_list(teams)
+            return True
+        
+        # Determine team_id
+        if args.id:
+            team_id = args.id
+        else:
+            team_id = get_my_team_id()
+            if team_id == 0:
+                print("\n" + "=" * 60)
+                print("No team specified")
+                print("=" * 60)
+                print("Please either:")
+                print("  1. Set MY_TEAM_ID in your .env file, or")
+                print("  2. Use --id <team_id> flag")
+                print("\nRun 'python main.py team --list' to see available teams.")
+                print("=" * 60)
+                return False
+        
+        # Validate team exists
+        if not team_exists(team_id):
+            print(f"\nTeam ID {team_id} not found.")
+            print("Run 'python main.py team --list' to see available teams.")
+            return False
+        
+        # Check we have data to analyze
+        summary = get_analysis_summary()
+        if summary['weeks_analyzed'] == 0:
+            print("\n" + "=" * 60)
+            print("Insufficient Data")
+            print("=" * 60)
+            print("No complete weeks available for analysis.")
+            if summary['weeks_excluded'] > 0:
+                incomplete_str = ', '.join(map(str, summary['incomplete_week_numbers']))
+                print(f"Week(s) {incomplete_str} still in progress.")
+            print("\nAnalysis requires at least one completed week.")
+            print("Run 'python main.py fetch' to get more data.")
+            print("=" * 60)
+            return False
+        
+        # Run analysis
+        result = analyze_team(team_id)
+        print_team_analysis(result)
+        return True
+        
+    except Exception as e:
+        print(f"\nError during team analysis: {e}")
+        logging.exception("Detailed Traceback:")
+        return False
+
+
+def migrate_command(args):
+    """Migrate database schema."""
+    print("\n" + "=" * 60)
+    print("DATABASE MIGRATION")
+    print("=" * 60)
+    print("This will delete all existing data in the database.")
+    print("Data can be re-fetched from Yahoo after migration.")
+    print("=" * 60)
+    
+    confirm = input("\nProceed with migration? (yes/no): ")
+    
+    if confirm.lower() != 'yes':
+        print("\nMigration cancelled.")
+        return False
+    
+    try:
+        print("\nDropping old tables...")
+        drop_all_tables()
+        
+        print("Creating new schema...")
+        init_db()
+        
+        print("\n" + "=" * 60)
+        print("✓ Migration complete!")
+        print("=" * 60)
+        print("\nRun 'python main.py fetch' to reload data with new schema.")
+        return True
+        
+    except Exception as e:
+        print(f"\nError during migration: {e}")
+        logging.exception("Detailed Traceback:")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Fantasy Hockey Analytics - Phase 2: Persistence & Threshold Engine",
+        description="Fantasy Hockey Analytics - Phase 3: Team Performance Analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Commands:
-  fetch     Fetch latest data from Yahoo and persist to DB
-  status    Show what weeks are stored and their completion status
-  analyze   Run threshold analysis on stored data (complete weeks only)
+  fetch           Fetch latest data from Yahoo and persist to DB
+  status          Show what weeks are stored and their completion status
+  analyze         Run threshold analysis on stored data (complete weeks only)
+  team            Analyze your team (requires MY_TEAM_ID in .env)
+  team --list     Show all available teams
+  team --id <ID>  Analyze a specific team by ID
+  migrate         Migrate database schema (drops existing data)
   
 Default behavior (no command): fetch + analyze
         """
     )
     
-    parser.add_argument(
-        'command',
-        nargs='?',
-        choices=['fetch', 'status', 'analyze'],
-        help='Command to execute (default: fetch and analyze)'
-    )
+    # Subcommands
+    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+    
+    # fetch command
+    parser_fetch = subparsers.add_parser('fetch', help='Fetch data from Yahoo')
+    
+    # status command
+    parser_status = subparsers.add_parser('status', help='Show database status')
+    
+    # analyze command
+    parser_analyze = subparsers.add_parser('analyze', help='Run threshold analysis')
+    
+    # team command
+    parser_team = subparsers.add_parser('team', help='Analyze team performance')
+    parser_team.add_argument('--list', action='store_true', help='List all teams')
+    parser_team.add_argument('--id', type=int, help='Team ID to analyze')
+    
+    # migrate command
+    parser_migrate = subparsers.add_parser('migrate', help='Migrate database schema')
     
     args = parser.parse_args()
     
     # Welcome message
-    print("\nWelcome to Fantasy Hockey Analytics - Phase 2")
-    print("Persistence & Threshold Engine\n")
+    print("\nWelcome to Fantasy Hockey Analytics - Phase 3")
+    print("Team Performance Analysis\n")
     
     # Execute based on command
     if args.command == 'fetch':
@@ -140,6 +269,14 @@ Default behavior (no command): fetch + analyze
         
     elif args.command == 'analyze':
         success = analyze_data()
+        sys.exit(0 if success else 1)
+        
+    elif args.command == 'team':
+        success = team_command(args)
+        sys.exit(0 if success else 1)
+        
+    elif args.command == 'migrate':
+        success = migrate_command(args)
         sys.exit(0 if success else 1)
         
     else:

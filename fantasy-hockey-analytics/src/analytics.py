@@ -37,7 +37,8 @@ def calculate_thresholds(category: str, db_path: str = "fantasy_hockey.db") -> C
     losing_values = []
     
     for outcome in outcomes:
-        if outcome['winner'] != 'Tie':
+        # In new schema, winner_team_id is NULL for ties
+        if outcome['winner_team_id'] is not None:
             winning_values.append(outcome['winning_value'])
             losing_values.append(outcome['losing_value'])
     
