@@ -225,8 +225,8 @@ def print_team_analysis(result: 'TeamAnalysisResult'):
     print(f"Performance vs League Winning Thresholds ({result.weeks_analyzed} weeks analyzed)")
     print("=" * 90)
     
-    # Table header
-    print(f"{'Category':<13} {'You':<8} {'Median':<8} {'Gap':<9} {'Win%':<7} {'Status':<18} {'Trend':<15}")
+    # Table header (Renamed "Median" to "To Win")
+    print(f"{'Category':<13} {'You':<8} {'To Win':<8} {'Gap':<9} {'Win%':<7} {'Status':<18} {'Trend':<15}")
     print("-" * 90)
     
     # Print each category
@@ -285,6 +285,19 @@ def print_team_analysis(result: 'TeamAnalysisResult'):
         print(f"{display_name:<13} {you_val:<8} {median_val:<8} {gap_str:<9} {winrate_str:<7} {status_str:<25} {trend_str:<15}")
     
     print("-" * 90)
+
+    # Added Legend
+    print("=" * 90)
+    print("HOW TO READ THIS:")
+    print('  "To Win"  = Typical score among category winners (median across all matchups)')
+    print('  "Gap"     = Your average minus To Win (positive = you\'re ahead)')
+    print('  "Win%"    = How often you won this category head-to-head')
+    print("")
+    print("  Status: 🟢 Strong (≥ To Win) | 🟡 Competitive (in range) | 🔴 Weak (below min)")
+    print("  Trend:  Last 3 weeks vs first 3 weeks (↗ improving, ↘ declining)")
+    print("")
+    print("  Note: GAA is inverted — lower is better, so negative Gap = good")
+    print("=" * 90)
     
     # Improvement Priorities
     if result.improvement_priorities:
